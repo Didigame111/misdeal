@@ -23,8 +23,11 @@ export interface JokerDef {
   /** Short live value printed on the card, e.g. "+7". */
   badge?: (j: JokerInst, g: GameState) => string | null
   init?: Record<string, number>
-  /** Once per hand, before cards score. Used for scaling. Not copied by Copycat. */
+  /** Once per hand, before cards score. Used for scaling, so Copycat only repeats it when `copyBefore` is set. */
   before?: (ctx: Ctx, j: JokerInst) => Effect | void
+  copyBefore?: boolean
+  /** Every hand played, including hands a boss blocks from scoring. */
+  onPlay?: (g: GameState, j: JokerInst) => void
   onScored?: (ctx: Ctx, j: JokerInst, card: Card) => Effect | void
   onHeld?: (ctx: Ctx, j: JokerInst, card: Card) => Effect | void
   main?: (ctx: Ctx, j: JokerInst) => Effect | void
@@ -290,7 +293,7 @@ export const JOKERS: JokerDef[] = [
     init: { mult: 0 },
     text: (j) => `Gains +1 Mult per hand played and loses 1 Mult per discard (currently +${j.s.mult} Mult)`,
     badge: (j) => `+${j.s.mult}`,
-    before: (_ctx, j) => {
+    onPlay: (_g, j) => {
       j.s.mult += 1
     },
     onDiscard: (_g, j) => {
@@ -325,7 +328,7 @@ export const JOKERS: JokerDef[] = [
     cost: 5,
     text: () => 'Adds double the value of the lowest card held in hand to Mult',
     onHeld: (ctx, _j, c) => {
-      const ranked = ctx.held.filter((h) => !isBlank(h) && !h.faceDown)
+      const ranked = ctx.held.filter((h) => !isBlank(h))
       if (!ranked.length || isBlank(c)) return
       let low = ranked[0]
       for (const h of ranked) if (rankChips(h.rank) < rankChips(low.rank)) low = h
@@ -402,6 +405,7 @@ export const JOKERS: JokerDef[] = [
     rarity: 2,
     cost: 6,
     text: () => '1 in 4 chance to level up the poker hand you play',
+    copyBefore: true,
     before: (ctx) => {
       if (chance(ctx.g, 4)) {
         ctx.g.levels[ctx.hand].level += 1
@@ -537,7 +541,7 @@ export const JOKERS: JokerDef[] = [
     name: 'Compound',
     rarity: 2,
     cost: 5,
-    text: () => 'Earn an extra $1 of interest for every $5 you have at the end of the round',
+    text: () => 'Doubles the interest you earn at the end of each round (same cap)',
     noCopy: true,
   },
   {

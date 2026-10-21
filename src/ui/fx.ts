@@ -80,6 +80,8 @@ export function useScorePlayback() {
         hiddenMoney: 0,
       })
       if (!score.blocked) sfx('total')
+      const r = useStore.getState().game?.round
+      if (!score.blocked && r && r.score + score.total >= r.target) window.setTimeout(() => sfx('win'), 260 / speed())
       timer = window.setTimeout(finish, (useFx.getState().skip ? 450 : 1100) / speed())
     }
 

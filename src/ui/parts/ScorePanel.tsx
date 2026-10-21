@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { selectedInOrder } from '../../game/engine'
 import { HANDS } from '../../game/hands'
 import { previewHand } from '../../game/scoring'
@@ -6,7 +7,7 @@ import { fmt, fmtMult } from '../format'
 import { useFx } from '../fx'
 
 /** Hand name and the chips × mult blocks. At the end of a hand the two blocks overprint into the total. */
-export function ScorePanel() {
+export const ScorePanel = memo(function ScorePanel() {
   const g = useStore((s) => s.game!)
   const panel = useFx((s) => s.panel)
   const total = useFx((s) => s.total)
@@ -28,8 +29,16 @@ export function ScorePanel() {
     }
   }
 
+  const r = g.round
+  const beaten = total != null && !bad && !!r && r.score + total >= r.target
+
   return (
-    <div className={`score-panel${total != null && !bad ? ' is-total' : ''}${bad ? ' is-bad' : ''}`}>
+    <div className={`score-panel${total != null && !bad ? ' is-total' : ''}${bad ? ' is-bad' : ''}${beaten ? ' is-beaten' : ''}`}>
+      {beaten && (
+        <span className="cm-stamp" aria-live="polite">
+          Blind beaten
+        </span>
+      )}
       <div className="hand-name" aria-live="polite">
         {bad ? (
           <span className="hand-bad">{bad}</span>
@@ -64,4 +73,4 @@ export function ScorePanel() {
       </div>
     </div>
   )
-}
+})

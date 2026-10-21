@@ -2,6 +2,9 @@
 const VERSION = '__VERSION__'
 const PRECACHE = __PRECACHE__
 const CACHE = `misdeal-${VERSION}`
+// Hosts add Vary headers (Firebase: x-fh-requested-host, accept-encoding) that would make cached
+// files miss when the page asks for them offline. Everything cached here is same-origin and static.
+const MATCH = { ignoreVary: true }
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)))
@@ -32,14 +35,14 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE).then((cache) => cache.put('/index.html', copy))
           return res
         })
-        .catch(() => caches.match('/index.html').then((page) => page || caches.match('/'))),
+        .catch(() => caches.match('/index.html', MATCH).then((page) => page || caches.match('/', MATCH))),
     )
     return
   }
 
   // Hashed build assets never change, so the cache wins.
   event.respondWith(
-    caches.match(req).then(
+    caches.match(req, MATCH).then(
       (hit) =>
         hit ||
         fetch(req).then((res) => {

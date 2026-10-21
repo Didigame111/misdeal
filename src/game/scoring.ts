@@ -125,6 +125,12 @@ function retriggers(ctx: Ctx, card: Card, zone: 'played' | 'held', index: number
   return n
 }
 
+/** How many times a card held in hand activates (Echo seals, Shadow Puppet and copies of it). */
+export function heldRepeats(g: GameState, card: Card, index: number): number {
+  const ctx = { g, opts: evalOpts(g) } as Ctx
+  return 1 + retriggers(ctx, card, 'held', index)
+}
+
 /**
  * Scores a played hand. Mutates `g` (money, joker counters, hand stats, rng) and
  * returns a timeline of events for the UI to play back.
@@ -159,6 +165,7 @@ export function computeScore(g: GameState, playedIds: string[], heldIds: string[
   else if (boss?.rules.noRepeat && r.typesPlayed.includes(ev.type)) blocked = 'Already played'
   r.typesPlayed.push(ev.type)
   r.lastHand = ev.type
+  for (const j of g.jokers) JOKER_MAP[j.key].onPlay?.(g, j)
 
   const setBase = () => {
     const base = handValues(ev.type, g.levels[ev.type].level)
@@ -190,13 +197,21 @@ export function computeScore(g: GameState, playedIds: string[], heldIds: string[
     ctx.events.push({ t: 'note', chips: 0, mult: 0, label: blocked, tone: 'bad' })
     ctx.chips = 0
     ctx.mult = 0
+    for (const j of g.jokers) JOKER_MAP[j.key].after?.(ctx, j)
     return finish()
   }
 
-  for (const j of g.jokers) {
-    const eff = JOKER_MAP[j.key].before?.(ctx, j)
-    if (eff) apply(ctx, 'joker', j.id, eff)
-  }
+  g.jokers.forEach((slot, i) => {
+    const own = JOKER_MAP[slot.key]
+    let eff: Effect | void = undefined
+    if (own.before) eff = own.before(ctx, slot)
+    else if (own.key === 'copycat') {
+      // Copycat repeats one-off pre-score abilities, but never double-scales another Joker's counters.
+      const e = effectiveJoker(g, i)
+      if (e?.def.copyBefore) eff = e.def.before?.(ctx, e.inst)
+    }
+    if (eff) apply(ctx, 'joker', slot.id, eff)
+  })
   setBase()
   ctx.events.push({ t: 'base', chips: ctx.chips, mult: ctx.mult, label: HANDS[ev.type].name })
 

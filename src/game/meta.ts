@@ -95,7 +95,7 @@ export const VOUCHERS: VoucherDef[] = [
   { key: 'widegrip', name: 'Wide Grip', text: '+1 hand size', apply: (g) => void (g.baseHandSize += 1) },
   { key: 'bigframe', name: 'Bigger Frame', text: '+1 Joker slot', apply: (g) => void (g.jokerSlots += 1) },
   { key: 'pocket', name: 'Extra Pocket', text: '+1 consumable slot', apply: (g) => void (g.consSlots += 1) },
-  { key: 'member', name: 'Member Discount', text: 'Everything in the shop is 25% off' },
+  { key: 'member', name: 'Member Discount', text: 'Cards, packs and vouchers in the shop are 25% off' },
   { key: 'bulkreroll', name: 'Bulk Reroll', text: 'Rerolls cost $2 less' },
   { key: 'savings', name: 'Savings Account', text: 'Interest can reach $10 per round instead of $5' },
   { key: 'overstock', name: 'Overstock', text: '+1 card slot in the shop' },

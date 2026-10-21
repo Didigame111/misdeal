@@ -152,22 +152,37 @@ export const useStore = create<Store>()(
 // ——— Persistence ———
 
 let saveTimer = 0
+
+function writeSave() {
+  window.clearTimeout(saveTimer)
+  saveTimer = 0
+  const g = useStore.getState().game
+  try {
+    if (!g || g.phase === 'over') localStorage.removeItem(SAVE_KEY)
+    else localStorage.setItem(SAVE_KEY, JSON.stringify(g))
+  } catch {
+    // Storage full or unavailable: the run just won't resume.
+  }
+}
+
 useStore.subscribe((s, prev) => {
   if (s.settings !== prev.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(s.settings))
   if (s.profile !== prev.profile) localStorage.setItem(PROFILE_KEY, JSON.stringify(s.profile))
   if (s.game !== prev.game) {
+    // Batch rapid moves into one write, but never lose the last move.
     window.clearTimeout(saveTimer)
-    saveTimer = window.setTimeout(() => {
-      const g = useStore.getState().game
-      try {
-        if (!g || g.phase === 'over') localStorage.removeItem(SAVE_KEY)
-        else localStorage.setItem(SAVE_KEY, JSON.stringify(g))
-      } catch {
-        // Storage full or unavailable: the run just won't resume.
-      }
-    }, 250)
+    saveTimer = window.setTimeout(writeSave, 250)
   }
 })
+
+// iPadOS can freeze or kill a backgrounded web app without warning, so save the moment it leaves the screen.
+const flushSave = () => {
+  if (saveTimer) writeSave()
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushSave()
+})
+window.addEventListener('pagehide', flushSave)
 
 /** Shorthand for running an engine action. */
 export const act = (fn: (g: GameState) => void) => useStore.getState().act(fn)

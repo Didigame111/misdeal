@@ -61,6 +61,7 @@ export function Hud() {
   const setModal = useStore((s) => s.setModal)
   const hidden = useFx((s) => s.hiddenMoney)
   const score = useCountUp(g.round?.score ?? 0)
+  const cash = useCountUp(g.money - hidden, 420)
   const showScore = !!g.round
   return (
     <header className="hud">
@@ -72,7 +73,9 @@ export function Hud() {
         </div>
       )}
       <div className="hud-box hud-money" aria-label={`Money: $${g.money - hidden}`}>
-        <span className="hud-num">${g.money - hidden}</span>
+        <span className="hud-num" key={g.money - hidden}>
+          ${cash}
+        </span>
       </div>
       <div className="hud-box hud-ante">
         <span className="hud-label">Ante</span>

@@ -18,7 +18,7 @@ import {
   rollEdition,
 } from './ops'
 import { chance, hashStr, makeSeed, pick, randInt, shuffle, weighted } from './rng'
-import { computeScore } from './scoring'
+import { computeScore, heldRepeats } from './scoring'
 import type {
   BlindInfo,
   Card,
@@ -175,6 +175,7 @@ export function selectBlind(g: GameState) {
   }
   g.phase = 'round'
   drawCards(g)
+  settleHand(g)
 }
 
 export function skipBlind(g: GameState) {
@@ -348,13 +349,38 @@ export function finishScoring(g: GameState) {
   }
   const boss = roundBoss(g)
   if (boss?.rules.jam) {
-    for (let k = 0; k < boss.rules.jam && r.hand.length; k++) {
-      const [id] = r.hand.splice(randInt(g, r.hand.length), 1)
-      r.discard.push(id)
-    }
+    const jammed: string[] = []
+    const pool = [...r.hand]
+    for (let k = 0; k < boss.rules.jam && pool.length; k++) jammed.push(...pool.splice(randInt(g, pool.length), 1))
+    discardCards(g, jammed, false)
   }
   drawCards(g)
-  g.phase = r.hand.length ? 'round' : 'over'
+  g.phase = 'round'
+  settleHand(g)
+}
+
+/**
+ * A round can't continue with an empty hand. Refill it, and if the deck is spent too,
+ * the round is lost instead of leaving the player with nothing to tap.
+ */
+function settleHand(g: GameState) {
+  const r = g.round
+  if (!r || g.phase !== 'round' || r.hand.length) return
+  drawCards(g)
+  if (!r.hand.length) g.phase = 'over'
+}
+
+/** Moves cards from the hand to the discard pile, firing seals. Only player discards count for Jokers. */
+function discardCards(g: GameState, ids: string[], byPlayer: boolean) {
+  const r = g.round!
+  r.hand = r.hand.filter((id) => !ids.includes(id))
+  r.discard.push(...ids)
+  const cards = ids.map((id) => g.cards[id]).filter(Boolean)
+  for (const c of cards) {
+    if (c.seal === 'stamp' && !isDebuffed(g, c) && addCons(g, randomStampKey(g))) g.notices.push('Stamp seal: you got a Stamp')
+    c.faceDown = false
+  }
+  if (byPlayer) for (const j of g.jokers) JOKER_MAP[j.key].onDiscard?.(g, j, cards)
 }
 
 function updateMostPlayed(g: GameState) {
@@ -368,19 +394,13 @@ export function discard(g: GameState) {
   const r = g.round
   const sel = selectedInOrder(g)
   if (!sel.length || r.discardsLeft <= 0) return
-  r.hand = r.hand.filter((id) => !sel.includes(id))
-  r.discard.push(...sel)
   r.selected = []
   r.discardsLeft -= 1
   r.discardsUsed += 1
   g.stats.cardsDiscarded += sel.length
-  const cards = sel.map((id) => g.cards[id])
-  for (const c of cards) {
-    c.faceDown = false
-    if (c.seal === 'stamp' && addCons(g, randomStampKey(g))) g.notices.push('Stamp seal: you got a Stamp')
-  }
-  for (const j of g.jokers) JOKER_MAP[j.key].onDiscard?.(g, j, cards)
+  discardCards(g, sel, true)
   drawCards(g)
+  settleHand(g)
 }
 
 function winRound(g: GameState) {
@@ -395,11 +415,20 @@ function winRound(g: GameState) {
   if (mint && r.discardsLeft > 0) lines.push({ label: `${plural(r.discardsLeft, 'discard')} left`, amount: r.discardsLeft })
 
   const held = r.hand.map((id) => g.cards[id]).filter(Boolean)
-  const gilded = held.filter((c) => c.enh === 'gilded' && !isDebuffed(g, c)).length
-  if (gilded) lines.push({ label: `${plural(gilded, 'Gilded card')} in hand`, amount: 3 * gilded })
-  for (const c of held) {
-    if (c.seal === 'plate' && r.lastHand && addCons(g, `plate_${r.lastHand}`)) g.notices.push('Plate seal: you got a Plate')
-  }
+  let gildedCards = 0
+  let gildedPays = 0
+  held.forEach((c, i) => {
+    if (isDebuffed(g, c)) return
+    const reps = heldRepeats(g, c, i)
+    if (c.enh === 'gilded') {
+      gildedCards += 1
+      gildedPays += reps
+    }
+    if (c.seal === 'plate' && r.lastHand) {
+      for (let k = 0; k < reps; k++) if (addCons(g, `plate_${r.lastHand}`)) g.notices.push('Plate seal: you got a Plate')
+    }
+  })
+  if (gildedPays) lines.push({ label: `${plural(gildedCards, 'Gilded card')} in hand`, amount: 3 * gildedPays })
 
   for (const j of g.jokers) {
     const m = JOKER_MAP[j.key].roundEnd?.(g, j)
@@ -453,6 +482,15 @@ export function priceOf(g: GameState, base: number): number {
   return g.vouchers.includes('member') ? Math.max(1, Math.round(base * 0.75)) : base
 }
 
+const cardBase = (card: Card) => 1 + (card.enh ? 1 : 0) + (card.ed ? 2 : 0) + (card.seal ? 1 : 0)
+
+/** Undiscounted price of a shop item. */
+function basePrice(it: ShopItem): number {
+  if (it.kind === 'joker') return it.joker.cost
+  if (it.kind === 'card') return cardBase(it.card)
+  return 3
+}
+
 const baseReroll = (g: GameState) => (g.vouchers.includes('bulkreroll') ? 3 : 5)
 const shopSlots = (g: GameState) => 2 + (g.vouchers.includes('overstock') ? 1 : 0)
 
@@ -472,8 +510,7 @@ function genShopItem(g: GameState, taken: Set<string>): ShopItem {
   }
   if (kind === 'card') {
     const card = randomCard(g, { enh: 0.4, ed: 0.1, seal: 0.1 })
-    const base = 1 + (card.enh ? 1 : 0) + (card.ed ? 2 : 0) + (card.seal ? 1 : 0)
-    return { id, kind: 'card', card, price: priceOf(g, base) }
+    return { id, kind: 'card', card, price: priceOf(g, cardBase(card)) }
   }
   const key = kind === 'plate' ? randomPlateKey(g) : randomStampKey(g)
   return { id, kind: 'cons', cons: { id: newId(g, 'k'), key }, price: priceOf(g, 3) }
@@ -580,6 +617,11 @@ export function buyVoucher(g: GameState) {
   g.vouchers.push(v.key)
   g.anteVoucher = null
   v.apply?.(g)
+  if (v.key === 'member' && g.shop) {
+    for (const it of g.shop.items) if (it.price > 0) it.price = priceOf(g, basePrice(it))
+    for (const p of g.shop.packs) if (p.price > 0) p.price = priceOf(g, PACKS[p.pack].price)
+  }
+  if (v.key === 'bulkreroll' && g.shop) g.shop.rerollCost = Math.max(0, g.shop.rerollCost - 2)
   if (v.key === 'overstock' && g.shop) {
     const taken = new Set([...g.jokers.map((j) => j.key), ...g.shop.items.flatMap((i) => (i.kind === 'joker' ? [i.joker.key] : []))])
     g.shop.items.push(genShopItem(g, taken))
@@ -628,6 +670,8 @@ export function useCons(g: GameState, consId: string) {
   const [inst] = g.cons.splice(idx, 1)
   runCons(g, inst.key, selectedInOrder(g), g.consSlots - g.cons.length)
   clearSelection(g)
+  // Shred can empty the hand mid-round.
+  settleHand(g)
 }
 
 // ——— Packs ———

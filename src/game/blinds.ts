@@ -39,7 +39,7 @@ export const BOSSES: BossDef[] = [
   { key: 'crimp', name: 'The Crimp', text: '−1 hand size', color: '#914e72', minAnte: 1, scoreMult: 2, handSize: -1, rules: {} },
   { key: 'fullsheet', name: 'The Full Sheet', text: 'You must play exactly 5 cards', color: '#3255a4', minAnte: 1, scoreMult: 2, rules: { mustPlay5: true } },
   { key: 'proof', name: 'The Proof', text: 'Only one poker hand type can score this round', color: '#00838a', minAnte: 2, scoreMult: 2, rules: { oneType: true } },
-  { key: 'fade', name: 'The Fade', text: 'Base Chips and Mult are halved', color: '#5ec8e5', minAnte: 2, scoreMult: 2, rules: { halfBase: true } },
+  { key: 'fade', name: 'The Fade', text: 'Base Chips and Mult are halved (rounded down)', color: '#5ec8e5', minAnte: 2, scoreMult: 2, rules: { halfBase: true } },
   { key: 'gutter', name: 'The Gutter', text: 'You get no discards this round', color: '#2a2f6b', minAnte: 2, scoreMult: 2, noDiscards: true, rules: {} },
   { key: 'blindspot', name: 'The Blind Spot', text: '1 in 7 cards are drawn face down', color: '#765ba7', minAnte: 2, scoreMult: 2, rules: { faceDown: 7 } },
   { key: 'ream', name: 'The Ream', text: 'A huge score is required', color: '#914e72', minAnte: 2, scoreMult: 4, rules: {} },

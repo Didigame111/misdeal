@@ -416,7 +416,7 @@ export function EndScreen() {
           {won
             ? 'Every boss through ante 8 is beaten. Keep going in endless mode to see how far your deck can go.'
             : r
-              ? `Out of hands on ${E.blindName(g.blinds[g.blindIdx])}: ${fmt(r.score)} of ${fmt(r.target)}.`
+              ? `${r.handsLeft > 0 ? 'Out of cards' : 'Out of hands'} on ${E.blindName(g.blinds[g.blindIdx])}: ${fmt(r.score)} of ${fmt(r.target)}.`
               : 'Out of cards to play.'}
         </p>
         <dl className="end-stats">

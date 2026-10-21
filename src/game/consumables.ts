@@ -78,7 +78,7 @@ function suitStamp(key: string, name: string, suit: Suit): ConsDef {
     use: ({ selected }) => {
       for (const c of selected) {
         c.suit = suit
-        if (c.enh === 'blank') c.enh = undefined
+        if (c.enh === 'blank') delete c.enh
       }
     },
   }
@@ -134,7 +134,9 @@ export const STAMPS: ConsDef[] = [
     use: ({ selected }) => {
       const [left, right] = selected
       const { id } = left
-      Object.assign(left, { ...right, id, faceDown: false })
+      // Clear the left card first so none of its old enhancement, edition or seal survives.
+      for (const k of Object.keys(left)) delete (left as unknown as Record<string, unknown>)[k]
+      Object.assign(left, JSON.parse(JSON.stringify(right)), { id, faceDown: false })
     },
   },
   {

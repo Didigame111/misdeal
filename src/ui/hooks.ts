@@ -17,12 +17,22 @@ export function usePress(handlers: PressHandlers) {
   const h = useRef(handlers)
   h.current = handlers
   const st = useRef<{ id: number; x: number; y: number; dragging: boolean; long: boolean; timer: number } | null>(null)
+  // Pointer events can arrive several times per frame; only the latest drag position matters.
+  const frame = useRef({ raf: 0, dx: 0, dy: 0 })
+  const flushDrag = () => {
+    frame.current.raf = 0
+    h.current.onDragMove?.(frame.current.dx, frame.current.dy)
+  }
 
   const end = (e: React.PointerEvent, cancelled: boolean) => {
     const s = st.current
     if (!s || s.id !== e.pointerId) return
     window.clearTimeout(s.timer)
     st.current = null
+    if (frame.current.raf) {
+      cancelAnimationFrame(frame.current.raf)
+      frame.current.raf = 0
+    }
     const dx = e.clientX - s.x
     const dy = e.clientY - s.y
     if (s.dragging) h.current.onDragEnd?.(dx, dy)
@@ -61,13 +71,18 @@ export function usePress(handlers: PressHandlers) {
           s.long = true // moved too far for a tap
         }
       }
-      if (s.dragging) h.current.onDragMove?.(dx, dy)
+      if (s.dragging) {
+        frame.current.dx = dx
+        frame.current.dy = dy
+        if (!frame.current.raf) frame.current.raf = requestAnimationFrame(flushDrag)
+      }
     },
     onPointerUp: (e: React.PointerEvent) => end(e, false),
     onPointerCancel: (e: React.PointerEvent) => end(e, true),
     onKeyDown: (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
+        e.stopPropagation()
         h.current.onTap?.()
       }
     },
@@ -96,6 +111,11 @@ export function useSize<T extends HTMLElement>() {
 }
 
 /** Animates a number towards its target value. */
+/** True when the user asked iPadOS to reduce motion. Scripted animations check this; CSS handles the rest. */
+export function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export function useCountUp(value: number, ms = 520) {
   const [shown, setShown] = useState(value)
   const from = useRef(value)
@@ -104,6 +124,10 @@ export function useCountUp(value: number, ms = 520) {
   useEffect(() => {
     from.current = shownRef.current
     if (from.current === value) return
+    if (prefersReducedMotion()) {
+      setShown(value)
+      return
+    }
     const start = performance.now()
     let raf = 0
     const tick = (now: number) => {

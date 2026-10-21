@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { rectOf, usePress, useSize } from '../hooks'
 
 interface Props<T> {
@@ -32,6 +32,10 @@ export function SlotRow<T>({ items, getId, render, label, empty, onTap, onMove, 
   const [ref, size] = useSize<HTMLDivElement>()
   const [probe, card] = useSize<HTMLDivElement>()
   const [drag, setDrag] = useState<{ id: string; from: number; dx: number } | null>(null)
+  // Items present when the row first appears don't animate; anything added later drops in.
+  const initial = useRef<Set<string> | null>(null)
+  if (!initial.current) initial.current = new Set(items.map(getId))
+  const seen = initial.current
   const cw = card.w || 80
   const slots = layout(items.length, Math.max(0, size.w - 20), cw, cw * 0.1)
 
@@ -59,6 +63,7 @@ export function SlotRow<T>({ items, getId, render, label, empty, onTap, onMove, 
             x={x}
             z={dragging ? 50 : idx + 1}
             dragging={dragging}
+            isNew={!seen.has(id)}
             onTap={(el) => onTap(item, el)}
             onDragStart={onMove ? () => setDrag({ id, from: i, dx: 0 }) : undefined}
             onDragMove={(dx) => setDrag((d) => (d ? { ...d, dx } : d))}
@@ -77,6 +82,7 @@ export function SlotRow<T>({ items, getId, render, label, empty, onTap, onMove, 
 }
 
 interface ItemProps {
+  isNew: boolean
   x: number
   z: number
   dragging: boolean
@@ -87,7 +93,7 @@ interface ItemProps {
   onDragEnd: () => void
 }
 
-function SlotItem({ x, z, dragging, children, onTap, onDragStart, onDragMove, onDragEnd }: ItemProps) {
+function SlotItem({ isNew, x, z, dragging, children, onTap, onDragStart, onDragMove, onDragEnd }: ItemProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null)
   const press = usePress({
     onTap: () => el && onTap(el),
@@ -98,7 +104,7 @@ function SlotItem({ x, z, dragging, children, onTap, onDragStart, onDragMove, on
   return (
     <div
       ref={setEl}
-      className={`slot-item${dragging ? ' is-drag' : ''}`}
+      className={`slot-item${dragging ? ' is-drag' : ''}${isNew ? ' is-new' : ''}`}
       style={{ transform: `translate3d(${x}px, ${dragging ? -8 : 0}px, 0)`, zIndex: z }}
       role="button"
       tabIndex={0}

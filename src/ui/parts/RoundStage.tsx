@@ -90,6 +90,8 @@ const tf = (p: P) => `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.r}deg)`
 
 interface TableCardProps {
   fresh: boolean
+  /** Still travelling from the deck: shows its back, then flips face up mid-flight. */
+  dealing: boolean
   card: Card
   g: GameState
   p: P
@@ -107,7 +109,7 @@ interface TableCardProps {
 }
 
 function TableCard(props: TableCardProps) {
-  const { card, g, p, z, delay, selected, dim, dragging, interactive, fresh } = props
+  const { card, g, p, z, delay, selected, dim, dragging, interactive, fresh, dealing } = props
   const ref = useRef<HTMLDivElement>(null)
   const press = usePress(
     interactive
@@ -123,15 +125,29 @@ function TableCard(props: TableCardProps) {
   return (
     <div
       ref={ref}
-      className={`tcard${fresh ? ' is-fresh' : ''}${selected ? ' is-sel' : ''}${dragging ? ' is-drag' : ''}${dim ? ' is-dim' : ''}${interactive ? ' is-live' : ''}`}
-      style={{ transform: tf(p), zIndex: z, transitionDelay: delay ? `${delay}ms` : undefined }}
+      className={`tcard${fresh ? ' is-fresh' : ''}${dealing ? ' is-dealing' : ''}${selected ? ' is-sel' : ''}${dragging ? ' is-drag' : ''}${dim ? ' is-dim' : ''}${interactive ? ' is-live' : ''}`}
+      style={
+        {
+          transform: tf(p),
+          zIndex: z,
+          transitionDelay: delay ? `${delay}ms` : undefined,
+          '--deal-delay': `${delay}ms`,
+        } as React.CSSProperties
+      }
       role={interactive ? 'button' : undefined}
       aria-pressed={interactive ? selected : undefined}
       aria-label={card.faceDown ? 'Face-down card' : cardName(card)}
       tabIndex={interactive ? 0 : -1}
       {...press}
     >
-      <PlayingCard card={card} deck={g.deck} faceDown={card.faceDown} debuffed={cardDebuffed(g, card)} />
+      <div className="flip">
+        <PlayingCard card={card} deck={g.deck} faceDown={card.faceDown} debuffed={cardDebuffed(g, card)} />
+        {dealing && (
+          <div className="flip-back" aria-hidden="true">
+            <CardBack deck={g.deck} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -219,13 +235,22 @@ export function RoundStage() {
 
   const fresh = geo ? liveIds.filter((id) => !ready.has(id)) : []
   const freshKey = fresh.join(',')
+  // Marking cards ready changes freshKey, so the effect below re-runs and would cancel its own
+  // timers. The timers that end each deal live here instead and only stop when the table unmounts.
+  const dealTimers = useRef(new Set<number>())
+  useEffect(() => {
+    const timers = dealTimers.current
+    return () => {
+      for (const t of timers) window.clearTimeout(t)
+      timers.clear()
+    }
+  }, [])
   useEffect(() => {
     if (!freshKey) return
     const ids = freshKey.split(',')
     const speed = useStore.getState().settings.speed
     sfx('deal')
     let r2 = 0
-    let clear = 0
     const r1 = requestAnimationFrame(() => {
       r2 = requestAnimationFrame(() => {
         setDeal((d) => {
@@ -237,21 +262,23 @@ export function RoundStage() {
           })
           return { ready: nextReady, delays }
         })
-        clear = window.setTimeout(
-          () =>
+        const timer = window.setTimeout(
+          () => {
+            dealTimers.current.delete(timer)
             setDeal((d) => {
               const delays = { ...d.delays }
               for (const id of ids) delete delays[id]
               return { ready: d.ready, delays }
-            }),
+            })
+          },
           (ids.length * 55 + 450) / speed,
         )
+        dealTimers.current.add(timer)
       })
     })
     return () => {
       cancelAnimationFrame(r1)
       cancelAnimationFrame(r2)
-      window.clearTimeout(clear)
     }
   }, [freshKey])
 
@@ -289,6 +316,7 @@ export function RoundStage() {
     >
       <div className="round-panel">
         <ScorePanel />
+        {scoring && <span className="skip-hint">Tap the table to skip</span>}
       </div>
       <div className="round-boss">
         {boss && (
@@ -356,6 +384,7 @@ export function RoundStage() {
             <TableCard
               key={id}
               fresh={isFresh}
+              dealing={!isFresh && deal.delays[id] !== undefined}
               card={card}
               g={g}
               p={p}

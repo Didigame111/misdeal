@@ -130,7 +130,7 @@ export function evaluate(played: Card[], opts: EvalOpts = {}): HandEval {
   const contains: Record<HandType, boolean> = {
     high: true,
     pair: top >= 2,
-    twopair: pairs.length >= 2 || top >= 4,
+    twopair: pairs.length >= 2,
     three: top >= 3,
     straight: !!straight,
     flush: !!flush,

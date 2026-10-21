@@ -239,3 +239,110 @@ describe('run flow', () => {
     if (!instant.includes(tag)) expect(g.tags).toContain(tag)
   })
 })
+
+/** A round holding exactly these cards, with an empty draw pile. */
+function table(playedSpecs: string[], heldSpecs: string[] = [], jokers: string[] = [], boss?: string) {
+  const g = E.newGame('plain', 'QA-FIX')
+  if (boss) g.blinds[0] = { ...g.blinds[0], kind: 'boss', boss }
+  E.selectBlind(g)
+  g.cards = {}
+  const add = (s: string) => {
+    const card = c(s)
+    g.cards[card.id] = card
+    return card
+  }
+  const p = playedSpecs.map(add)
+  const h = heldSpecs.map(add)
+  Object.assign(g.round!, { hand: [...p, ...h].map((x) => x.id), draw: [], discard: [], played: [], selected: [], target: 1e12 })
+  g.jokers = jokers.map((k) => makeJoker(g, k))
+  const play = () => {
+    g.round!.selected = p.map((x) => x.id)
+    E.playHand(g)
+    return g.score!
+  }
+  return { g, p, h, play }
+}
+
+describe('QA round 1 regressions', () => {
+  it('ends the round instead of stalling when the last cards are discarded', () => {
+    const { g, p } = table(['2S'])
+    g.round!.selected = [p[0].id]
+    E.discard(g)
+    expect(g.phase).toBe('over')
+  })
+
+  it('makes Duplicate an exact copy', () => {
+    const { g, p } = table(['2S', '14H'])
+    Object.assign(p[0], { enh: 'tissue', ed: 'prism', seal: 'echo' })
+    g.round!.selected = p.map((x) => x.id)
+    g.cons.push({ id: 'k-dup', key: 'duplicate' })
+    E.useCons(g, 'k-dup')
+    expect(g.cards[p[0].id]).toEqual({ ...p[1], id: p[0].id, faceDown: false })
+  })
+
+  it('lets Copycat repeat Press Run but not scaling counters', () => {
+    const { g, play } = table(['2S'], [], ['copycat', 'pressrun'])
+    g.rng = 0
+    expect(play().level).toBe(2)
+    const m = table(['2S'], [], ['copycat', 'momentum'])
+    m.play()
+    expect(m.g.jokers[1].s.mult).toBe(1)
+  })
+
+  it('retriggers held end-of-round abilities and skips debuffed seals', () => {
+    const a = table(['2S'], ['3H'], ['shadow'])
+    a.h[0].enh = 'gilded'
+    a.g.round!.target = 1
+    a.play()
+    E.finishScoring(a.g)
+    expect(a.g.cashout!.find((x) => x.label.includes('Gilded'))!.amount).toBe(6)
+
+    const b = table(['2S'], ['3H'], [], 'smudge')
+    b.h[0].seal = 'plate'
+    b.g.round!.target = 1
+    b.play()
+    E.finishScoring(b.g)
+    expect(b.g.cons).toHaveLength(0)
+  })
+
+  it('fires Stamp seals on cards The Paper Jam discards', () => {
+    const { g, h, play } = table(['2S'], ['3H', '4C', '5D'], [], 'paperjam')
+    for (const x of h) x.seal = 'stamp'
+    play()
+    E.finishScoring(g)
+    expect(g.cons).toHaveLength(2)
+  })
+
+  it('lets Low Ball see face-down cards and keeps four of a kind out of Two-Step', () => {
+    const lb = table(['2S'], ['3H', '9S'], ['lowball'], 'blindspot')
+    lb.h[0].faceDown = true
+    expect(lb.play().mult).toBe(7)
+    const ts = table(['2S', '2H', '2C', '2D', '9S'], [], ['twostep'])
+    expect(ts.play().mult).toBe(7)
+  })
+
+  it('still counts a boss-blocked hand for Momentum and Ice Pop', () => {
+    const { g, play } = table(['2S'], [], ['momentum', 'icepop'], 'fullsheet')
+    expect(play().blocked).toBeTruthy()
+    expect(g.jokers.map((j) => j.s)).toEqual([{ mult: 1 }, { chips: 95 }])
+  })
+
+  it('applies shop vouchers to the stock already on the shelf', () => {
+    const g = E.newGame('plain', 'QA-SHOP')
+    E.selectBlind(g)
+    g.round!.target = 1
+    g.round!.selected = g.round!.hand.slice(0, 5)
+    E.playHand(g)
+    E.finishScoring(g)
+    E.cashOut(g)
+    g.money = 100
+    g.anteVoucher = 'member'
+    const packBase = g.shop!.packs[0].price
+    E.buyVoucher(g)
+    expect(g.shop!.packs[0].price).toBe(Math.max(1, Math.round(packBase * 0.75)))
+    g.anteVoucher = 'bulkreroll'
+    const reroll = g.shop!.rerollCost
+    E.buyVoucher(g)
+    expect(g.shop!.rerollCost).toBe(Math.max(0, reroll - 2))
+  })
+})

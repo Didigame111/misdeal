@@ -39,7 +39,7 @@ export function cardName(c: Card): string {
 export const ENH_INFO: Record<Enhancement, { name: string; desc: string }> = {
   embossed: { name: 'Embossed', desc: '+30 Chips' },
   fluoro: { name: 'Fluoro', desc: '+4 Mult' },
-  rainbow: { name: 'Rainbow', desc: 'Counts as every suit' },
+  rainbow: { name: 'Rainbow', desc: "Counts as every suit, and suit bosses can't debuff it" },
   tissue: { name: 'Tissue', desc: '×2 Mult. 1 in 4 chance to tear after scoring' },
   stock: { name: 'Card Stock', desc: '×1.5 Mult while this card stays in your hand' },
   blank: { name: 'Blank', desc: '+50 Chips. No rank or suit. Always scores' },

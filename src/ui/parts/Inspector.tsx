@@ -246,11 +246,14 @@ export function Inspector() {
       if (!ref.current?.contains(e.target as Node)) setInspect(null)
     }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setInspect(null)
+    const onResize = () => setInspect(null)
     document.addEventListener('pointerdown', onDown, true)
     document.addEventListener('keydown', onKey)
+    window.addEventListener('resize', onResize)
     return () => {
       document.removeEventListener('pointerdown', onDown, true)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', onResize)
     }
   }, [inspect, setInspect])
 
