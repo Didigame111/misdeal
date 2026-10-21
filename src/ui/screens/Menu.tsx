@@ -15,16 +15,16 @@ export function Menu() {
   return (
     <div className="menu mat">
       <div className="poster">
-        <h1 className="logo" aria-label="Print Run">
+        <h1 className="logo" aria-label="Misdeal">
           <span className="logo-ink logo-pink" aria-hidden="true">
-            Print
+            Mis
             <br />
-            Run
+            deal
           </span>
           <span className="logo-ink logo-blue" aria-hidden="true">
-            Print
+            Mis
             <br />
-            Run
+            deal
           </span>
         </h1>
         <p className="poster-line">A poker roguelike. Build hands, hire Jokers, beat eight antes of blinds.</p>

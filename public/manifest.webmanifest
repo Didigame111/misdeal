@@ -1,6 +1,6 @@
 {
-  "name": "Print Run",
-  "short_name": "Print Run",
+  "name": "Misdeal",
+  "short_name": "Misdeal",
   "description": "A poker roguelike for iPad. Build hands, collect Jokers and beat eight antes of blinds.",
   "start_url": "/",
   "scope": "/",

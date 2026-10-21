@@ -1,6 +1,6 @@
 <img src="assets/icon.svg" width="64" height="64" alt="">
 
-# Print Run
+# Misdeal
 
 A poker roguelike for iPad, played in the browser. It follows the run structure of Balatro (blinds and antes, chips × mult scoring, Jokers, a shop, booster packs, hand levels, vouchers and tags). The art, names, Joker roster and theme are original: a risograph print shop on a cutting mat.
 
@@ -50,4 +50,4 @@ Open the `web.app` link in Safari, tap Share, then **Add to Home Screen**. It th
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Print Run is a fan-made game inspired by Balatro's mechanics; it is not affiliated with Balatro or its creators, and contains none of its art or text.
+MIT, see [LICENSE](LICENSE). Misdeal is a fan-made game inspired by Balatro's mechanics; it is not affiliated with Balatro or its creators, and contains none of its art or text.

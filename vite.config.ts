@@ -6,7 +6,7 @@ import { defineConfig, type Plugin } from 'vite'
 /** Emits sw.js with the exact list of built files, so the game works offline after one visit. */
 function serviceWorker(): Plugin {
   return {
-    name: 'print-run-service-worker',
+    name: 'misdeal-service-worker',
     apply: 'build',
     generateBundle(_options, bundle) {
       const built = Object.keys(bundle).map((f) => `/${f}`)
