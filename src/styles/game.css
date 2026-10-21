@@ -282,7 +282,7 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--gap);
-  padding: max(env(safe-area-inset-top), 10px) max(env(safe-area-inset-right), 14px) max(env(safe-area-inset-bottom), 10px)
+  padding: var(--top-pad) max(env(safe-area-inset-right), 14px) max(env(safe-area-inset-bottom), 10px)
     max(env(safe-area-inset-left), 14px);
   overflow: hidden;
 }
@@ -1053,7 +1053,7 @@
 
 .shop {
   display: grid;
-  grid-template-columns: calc(var(--cw) * 1.7) minmax(0, 1fr) auto;
+  grid-template-columns: max(calc(var(--cw) * 1.7), 186px) minmax(0, 1fr) auto;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     'side items voucher'
@@ -1265,7 +1265,7 @@
   z-index: 300;
   display: grid;
   place-items: center;
-  padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
+  padding: max(var(--top-pad), 16px) 16px max(env(safe-area-inset-bottom), 16px);
   background: rgb(9 33 26 / 0.66);
   animation: fade 0.18s ease-out;
 }
@@ -1612,7 +1612,7 @@
 .toasts {
   position: fixed;
   z-index: 250;
-  top: calc(max(env(safe-area-inset-top), 10px) + 66px);
+  top: calc(var(--top-pad) + 66px);
   left: 50%;
   display: flex;
   flex-direction: column;
@@ -1657,7 +1657,7 @@
   align-items: center;
   justify-items: center;
   gap: 32px;
-  padding: max(env(safe-area-inset-top), 24px) max(env(safe-area-inset-right), 32px) max(env(safe-area-inset-bottom), 24px)
+  padding: max(var(--top-pad), 24px) max(env(safe-area-inset-right), 32px) max(env(safe-area-inset-bottom), 24px)
     max(env(safe-area-inset-left), 32px);
 }
 

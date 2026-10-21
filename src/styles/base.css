@@ -31,7 +31,15 @@
   --gap: clamp(8px, 1.1vw, 14px);
   --press: 0.12s;
   --speed: 1;
+  /* Space above the HUD. Home Screen apps on iPadOS 26+ blur the band under the status bar, so clear it. */
+  --top-pad: max(env(safe-area-inset-top), 10px);
   color-scheme: light;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  :root {
+    --top-pad: calc(env(safe-area-inset-top) + 38px);
+  }
 }
 
 @media (orientation: portrait) {
