@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useStore } from '../store'
 import { SvgDefs } from './art/Defs'
-import { unlockAudio } from './audio'
+import { audio, unlockAudio } from './audio'
+import { setMusicMode, startMusic, stopMusic, type MusicMode } from './music'
+import { roundBoss } from '../game/blinds'
 import { GameScreen } from './screens/GameScreen'
 import { Menu } from './screens/Menu'
 
@@ -34,6 +36,42 @@ export function App() {
   const screen = useStore((s) => s.screen)
   const hasGame = useStore((s) => !!s.game)
   const speed = useStore((s) => s.settings.speed)
+
+  const musicOn = useStore((s) => s.settings.music)
+  const mood = useStore((s): MusicMode => {
+    const g = s.game
+    if (s.screen !== 'game' || !g) return 'calm'
+    if (g.phase === 'round' || g.phase === 'scoring') return roundBoss(g) ? 'boss' : 'round'
+    return 'calm'
+  })
+
+  useEffect(() => setMusicMode(mood), [mood])
+
+  useEffect(() => {
+    // Music can only start after a touch on iOS; try now and on every touch until it's going.
+    const kick = () => {
+      if (useStore.getState().settings.music) startMusic()
+    }
+    if (!musicOn) {
+      stopMusic()
+      return
+    }
+    kick()
+    window.addEventListener('pointerdown', kick)
+    return () => window.removeEventListener('pointerdown', kick)
+  }, [musicOn])
+
+  useEffect(() => {
+    // Stop the audio clock in the background so a parked iPad doesn't burn battery.
+    const onVis = () => {
+      const a = audio()
+      if (!a) return
+      if (document.visibilityState === 'hidden') void a.ctx.suspend()
+      else void a.ctx.resume().then(() => useStore.getState().settings.music && startMusic())
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
 
   useEffect(() => {
     const unlock = () => unlockAudio()

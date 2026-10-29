@@ -1954,7 +1954,7 @@
   }
 }
 
-.slot-item.is-new > .card {
+.slot-item.is-new .card {
   animation: drop-in 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) both;
 }
 
@@ -2060,4 +2060,230 @@
   box-shadow: 4px 5px 0 var(--pink);
   transform: translateX(-50%);
   animation: fade 0.25s ease-out;
+}
+
+/* ——— Touch feel ——— */
+
+.tilt,
+.float {
+  width: 100%;
+  height: 100%;
+}
+
+/* Pressing a card tilts it toward the finger, like pushing on real card stock. */
+.tilt {
+  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.tilt.is-pressed {
+  transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.06);
+  transition-duration: 0.09s;
+}
+
+/* Cards in the hand drift a little, each on its own beat. */
+.tcard.is-live:not(.is-drag) .float {
+  animation: idle-float 3.6s ease-in-out var(--float-delay, 0s) infinite;
+}
+
+@keyframes idle-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(0.6deg);
+  }
+}
+
+/* A dragged card follows the finger closely but leans into the motion. */
+.tcard.is-drag {
+  transition: transform 0.05s linear;
+}
+
+/* ——— Blind beaten ——— */
+
+.round.is-beaten {
+  animation: table-shake calc(0.46s / var(--speed)) ease-out calc(0.22s / var(--speed));
+}
+
+@keyframes table-shake {
+  15% {
+    transform: translate(-5px, 2px);
+  }
+  35% {
+    transform: translate(5px, -2px);
+  }
+  55% {
+    transform: translate(-3px, 1px);
+  }
+  75% {
+    transform: translate(2px, 0);
+  }
+}
+
+.score-panel.is-beaten::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -10px;
+  border-radius: 22px;
+  background: radial-gradient(closest-side, rgb(255 72 176 / 0.55), transparent);
+  animation: splash calc(0.7s / var(--speed)) ease-out calc(0.2s / var(--speed)) both;
+  pointer-events: none;
+}
+
+@keyframes splash {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+.burst {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 55%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.burst i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--w);
+  height: var(--h);
+  border-radius: 2px;
+  background: var(--c);
+  animation: confetti calc(1.15s / var(--speed)) cubic-bezier(0.15, 0.75, 0.35, 1) var(--d) both;
+}
+
+@keyframes confetti {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(calc(var(--rot) * 0.6));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx) * 1.15), calc(-50% + var(--dy) + 70px)) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+/* ——— Difficulty, unlocks and collection ——— */
+
+.diff-pick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.diff-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--paper2);
+  text-align: left;
+  line-height: 1.3;
+}
+
+.diff-option strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 16px/1.2 var(--display);
+}
+
+.diff-option.is-on {
+  background: var(--yellow);
+  box-shadow: 4px 5px 0 var(--blue);
+}
+
+.diff-option.is-locked,
+.deck-option.is-locked {
+  color: var(--ink-soft);
+  background: repeating-linear-gradient(135deg, var(--paper2) 0 8px, #ddd5bf 8px 16px);
+}
+
+.deck-option.is-locked .deck-option-art {
+  filter: grayscale(1) opacity(0.45);
+}
+
+.deck-option-art {
+  position: relative;
+}
+
+.deck-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  filter: none;
+}
+
+.deck-lock .lock-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.lock-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.deck-won {
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 7px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 12px/1.5 var(--display);
+}
+
+.coll-count {
+  margin: 0 0 12px;
+}
+
+.coll-item.is-unknown strong {
+  color: var(--ink-soft);
+}
+
+.end-unlocks {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--yellow);
+  box-shadow: 3px 4px 0 var(--blue);
+}
+
+.end-unlocks strong {
+  font: 15px/1.2 var(--display);
+}
+
+.end-unlocks ul {
+  margin: 4px 0 0;
+  padding-left: 1.1em;
+  font-weight: 700;
+}
+
+@media (orientation: portrait) {
+  .diff-pick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

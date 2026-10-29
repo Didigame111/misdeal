@@ -220,6 +220,8 @@ export interface GameState {
   shopsVisited: number
   sort: SortMode
   endless: boolean
+  /** Index into DIFFICULTIES. Missing on saves from before difficulty levels existed (treated as Normal). */
+  difficulty?: number
   stats: RunStats
   notices: string[]
 }

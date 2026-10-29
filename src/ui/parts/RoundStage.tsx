@@ -9,6 +9,7 @@ import { CardBack } from '../art/CardBack'
 import { sfx } from '../audio'
 import { useFx } from '../fx'
 import { rectOf, usePress } from '../hooks'
+import { tiltToward, untilt } from '../tilt'
 import { cardDebuffed, PlayingCard } from './Items'
 import { RichText } from './RichText'
 import { ScorePanel } from './ScorePanel'
@@ -89,6 +90,8 @@ function rowSlots(n: number, zone: Zone, cw: number, ch: number): P[] {
 const tf = (p: P) => `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.r}deg)`
 
 interface TableCardProps {
+  /** Position in the hand, to stagger the idle float. */
+  floatIndex: number
   fresh: boolean
   /** Still travelling from the deck: shows its back, then flips face up mid-flight. */
   dealing: boolean
@@ -109,11 +112,14 @@ interface TableCardProps {
 }
 
 function TableCard(props: TableCardProps) {
-  const { card, g, p, z, delay, selected, dim, dragging, interactive, fresh, dealing } = props
+  const { card, g, p, z, delay, selected, dim, dragging, interactive, fresh, dealing, floatIndex } = props
   const ref = useRef<HTMLDivElement>(null)
+  const tilt = useRef<HTMLDivElement>(null)
   const press = usePress(
     interactive
       ? {
+          onPressStart: (e) => tiltToward(tilt.current, e),
+          onPressEnd: () => untilt(tilt.current),
           onTap: props.onTap,
           onLongPress: () => ref.current && props.onLong(ref.current),
           onDragStart: props.onDragStart,
@@ -132,6 +138,7 @@ function TableCard(props: TableCardProps) {
           zIndex: z,
           transitionDelay: delay ? `${delay}ms` : undefined,
           '--deal-delay': `${delay}ms`,
+          '--float-delay': `${(-floatIndex * 0.47).toFixed(2)}s`,
         } as React.CSSProperties
       }
       role={interactive ? 'button' : undefined}
@@ -140,13 +147,17 @@ function TableCard(props: TableCardProps) {
       tabIndex={interactive ? 0 : -1}
       {...press}
     >
-      <div className="flip">
-        <PlayingCard card={card} deck={g.deck} faceDown={card.faceDown} debuffed={cardDebuffed(g, card)} />
-        {dealing && (
-          <div className="flip-back" aria-hidden="true">
-            <CardBack deck={g.deck} />
+      <div className="tilt" ref={tilt}>
+        <div className="float">
+          <div className="flip">
+            <PlayingCard card={card} deck={g.deck} faceDown={card.faceDown} debuffed={cardDebuffed(g, card)} />
+            {dealing && (
+              <div className="flip-back" aria-hidden="true">
+                <CardBack deck={g.deck} />
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
@@ -190,6 +201,7 @@ export function RoundStage() {
   const setModal = useStore((s) => s.setModal)
   const setInspect = useStore((s) => s.setInspect)
   const scoringIds = useFx((s) => s.scoringIds)
+  const beaten = useFx((s) => s.total != null && !s.panel?.bad)
   const r = g.round!
   const scoring = g.phase === 'scoring'
   const live = g.phase === 'round'
@@ -200,7 +212,8 @@ export function RoundStage() {
   const deckEl = useRef<HTMLButtonElement>(null)
   const geo = useGeo(stage, playZone, handZone, deckEl)
 
-  const [drag, setDrag] = useState<{ id: string; from: number; dx: number } | null>(null)
+  const [drag, setDrag] = useState<{ id: string; from: number; dx: number; vx: number } | null>(null)
+  const settle = useRef(0)
   const [deal, setDeal] = useState<{ ready: Set<string>; delays: Record<string, number> }>(() => ({ ready: new Set(), delays: {} }))
   const ready = deal.ready
   const [ghosts, setGhosts] = useState<Ghost[]>([])
@@ -223,7 +236,8 @@ export function RoundStage() {
     }
     order.forEach((id, i) => {
       const base = fan.pos[i]
-      if (drag?.id === id) pos.set(id, { x: fan.pos[drag.from].x + drag.dx, y: base.y - geo.ch * 0.12, r: 0 })
+      if (drag?.id === id)
+        pos.set(id, { x: fan.pos[drag.from].x + drag.dx, y: base.y - geo.ch * 0.12, r: Math.max(-14, Math.min(14, drag.vx * 0.8)) })
       else pos.set(id, { x: base.x, y: base.y - (r.selected.includes(id) ? geo.ch * 0.2 : 0), r: base.r })
     })
     const row = rowSlots(playedIds.length, geo.play, geo.cw, geo.ch)
@@ -249,7 +263,7 @@ export function RoundStage() {
     if (!freshKey) return
     const ids = freshKey.split(',')
     const speed = useStore.getState().settings.speed
-    sfx('deal')
+    ids.slice(0, 10).forEach((_, i) => window.setTimeout(() => sfx('deal'), (i * 55) / speed + 30))
     let r2 = 0
     const r1 = requestAnimationFrame(() => {
       r2 = requestAnimationFrame(() => {
@@ -310,7 +324,7 @@ export function RoundStage() {
 
   return (
     <div
-      className={`round${scoring ? ' is-scoring' : ''}`}
+      className={`round${scoring ? ' is-scoring' : ''}${beaten && g.round && g.round.score + (useFx.getState().total ?? 0) >= g.round.target ? ' is-beaten' : ''}`}
       ref={stage}
       onPointerDown={scoring ? () => useFx.getState().set({ skip: true }) : undefined}
     >
@@ -384,6 +398,7 @@ export function RoundStage() {
             <TableCard
               key={id}
               fresh={isFresh}
+              floatIndex={handOrderIdx}
               dealing={!isFresh && deal.delays[id] !== undefined}
               card={card}
               g={g}
@@ -401,8 +416,13 @@ export function RoundStage() {
                 act((d) => E.toggleSelect(d, id))
               }}
               onLong={(el) => setInspect({ kind: 'card', id, rect: rectOf(el) })}
-              onDragStart={() => setDrag({ id, from: handIds.indexOf(id), dx: 0 })}
-              onDragMove={(dx) => setDrag((d) => (d ? { ...d, dx } : d))}
+              onDragStart={() => setDrag({ id, from: handIds.indexOf(id), dx: 0, vx: 0 })}
+              onDragMove={(dx) => {
+                setDrag((d) => (d ? { ...d, dx, vx: dx - d.dx } : d))
+                // Straighten up once the finger stops moving.
+                window.clearTimeout(settle.current)
+                settle.current = window.setTimeout(() => setDrag((d) => (d ? { ...d, vx: 0 } : d)), 90)
+              }}
               onDragEnd={() => {
                 const from = handIds.indexOf(id)
                 if (dragTarget >= 0 && dragTarget !== from) act((d) => E.moveHandCard(d, from, dragTarget))

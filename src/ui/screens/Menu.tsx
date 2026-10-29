@@ -1,4 +1,5 @@
 import { makeCard } from '../../game/cards'
+import { DIFFICULTIES } from '../../game/difficulty'
 import { useStore } from '../../store'
 import { CardFace } from '../art/CardFace'
 import { JokerArt } from '../art/JokerArt'
@@ -52,7 +53,7 @@ export function Menu() {
           >
             <span className="btn-label">Continue</span>
             <span className="btn-sub">
-              Ante {game!.ante}, ${game!.money}
+              {(game!.difficulty ?? 0) > 0 ? `${DIFFICULTIES[game!.difficulty!].name}, ` : ''}Ante {game!.ante}, ${game!.money}
             </span>
           </button>
         )}

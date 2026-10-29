@@ -1,6 +1,7 @@
 import { anteBase, BOSSES, BOSS_MAP, isDebuffed, isShowdown, roundBoss, TAGS, TAG_MAP } from './blinds'
 import { makeCard, RANKS, SUIT_ORDER, SUITS } from './cards'
 import { canUseCons, consDef } from './consumables'
+import { difficultyMods, tidy } from './difficulty'
 import { HAND_ORDER } from './hands'
 import { JOKER_MAP, sellValue } from './jokers'
 import { DECK_MAP, PACKS, VOUCHERS, VOUCHER_MAP, VOUCHER_PRICE } from './meta'
@@ -38,7 +39,7 @@ export const WIN_ANTE = 8
 
 // ——— Run setup ———
 
-export function newGame(deckKey = 'plain', seed = makeSeed()): GameState {
+export function newGame(deckKey = 'plain', seed = makeSeed(), difficulty = 0): GameState {
   const levels = Object.fromEntries(HAND_ORDER.map((h) => [h, { level: 1, played: 0 }])) as GameState['levels']
   const g: GameState = {
     v: SAVE_VERSION,
@@ -75,6 +76,7 @@ export function newGame(deckKey = 'plain', seed = makeSeed()): GameState {
     shopsVisited: 0,
     sort: 'rank',
     endless: false,
+    difficulty,
     stats: { bestHand: 0, handsPlayed: 0, cardsDiscarded: 0, rerolls: 0 },
     notices: [],
   }
@@ -118,19 +120,25 @@ function pickVoucher(g: GameState): string | null {
   return pool.length ? pick(g, pool).key : null
 }
 
+function bossTarget(g: GameState, boss: string): number {
+  const mods = difficultyMods(g.difficulty)
+  return tidy(anteBase(g.ante) * BOSS_MAP[boss].scoreMult * mods.targetMult * mods.bossMult)
+}
+
 export function setupAnte(g: GameState) {
   for (const id in g.cards) g.cards[id].usedThisAnte = false
   g.blindIdx = 0
   const base = anteBase(g.ante)
+  const mods = difficultyMods(g.difficulty)
   const boss = pickBoss(g)
   const smallTag = pickTag(g)
   g.blinds = [
-    { kind: 'small', target: base, reward: 3, tag: smallTag, status: 'upcoming' },
-    { kind: 'big', target: Math.round(base * 1.5), reward: 4, tag: pickTag(g, smallTag), status: 'upcoming' },
+    { kind: 'small', target: tidy(base * mods.targetMult), reward: mods.smallReward ? 3 : 0, tag: smallTag, status: 'upcoming' },
+    { kind: 'big', target: tidy(base * 1.5 * mods.targetMult), reward: 4, tag: pickTag(g, smallTag), status: 'upcoming' },
     {
       kind: 'boss',
       boss,
-      target: base * BOSS_MAP[boss].scoreMult,
+      target: bossTarget(g, boss),
       reward: isShowdown(g.ante) ? 8 : 5,
       status: 'upcoming',
     },
@@ -162,7 +170,7 @@ export function selectBlind(g: GameState) {
     target: b.target,
     score: 0,
     handsLeft: Math.max(1, g.baseHands + (boss?.hands ?? 0)),
-    discardsLeft: boss?.noDiscards ? 0 : Math.max(0, g.baseDiscards + (boss?.discards ?? 0)),
+    discardsLeft: boss?.noDiscards ? 0 : Math.max(0, g.baseDiscards + (boss?.discards ?? 0) + difficultyMods(g.difficulty).discards),
     handSize: Math.max(1, handSize),
     hand: [],
     draw: shuffle(g, Object.keys(g.cards)),
@@ -212,7 +220,7 @@ function applyTag(g: GameState, key: string) {
     case 'bossswap': {
       const b = g.blinds[2]
       b.boss = pickBoss(g)
-      b.target = anteBase(g.ante) * BOSS_MAP[b.boss].scoreMult
+      b.target = bossTarget(g, b.boss)
       g.notices.push(`The boss is now ${BOSS_MAP[b.boss].name}`)
       break
     }
@@ -408,7 +416,7 @@ function winRound(g: GameState) {
   const b = g.blinds[g.blindIdx]
   b.status = 'beaten'
   const mint = g.deck === 'mint'
-  const lines: CashLine[] = [{ label: blindName(b), amount: b.reward }]
+  const lines: CashLine[] = b.reward > 0 ? [{ label: blindName(b), amount: b.reward }] : []
   const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
 
   if (r.handsLeft > 0) lines.push({ label: `${plural(r.handsLeft, 'hand')} left`, amount: r.handsLeft * (mint ? 2 : 1) })
@@ -478,7 +486,8 @@ export function cashOut(g: GameState) {
 
 // ——— Shop ———
 
-export function priceOf(g: GameState, base: number): number {
+export function priceOf(g: GameState, raw: number): number {
+  const base = raw + difficultyMods(g.difficulty).shopPlus
   return g.vouchers.includes('member') ? Math.max(1, Math.round(base * 0.75)) : base
 }
 

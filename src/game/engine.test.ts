@@ -346,3 +346,30 @@ describe('QA round 1 regressions', () => {
     expect(g.shop!.rerollCost).toBe(Math.max(0, reroll - 2))
   })
 })
+
+describe('difficulty and unlocks', () => {
+  it('keeps Normal identical and makes each level harder', () => {
+    const normal = E.newGame('plain', 'DIFF', 0)
+    expect(normal.blinds.map((b) => b.target)).toEqual([300, 450, normal.blinds[2].target])
+    const hard = E.newGame('plain', 'DIFF', 1)
+    expect(hard.blinds[0].target).toBeGreaterThan(300)
+    const expert = E.newGame('plain', 'DIFF', 2)
+    expect(expert.blinds[0].reward).toBe(0)
+    E.selectBlind(expert)
+    expect(expert.round!.discardsLeft).toBe(2)
+    const master = E.newGame('plain', 'DIFF', 3)
+    expect(E.priceOf(master, 5)).toBe(6)
+  })
+
+  it('opens decks and levels from clear goals', async () => {
+    const { deckUnlocked, difficultyUnlocked, deckGoal } = await import('./unlocks')
+    const fresh = { wins: 0, bestAnte: 1, bossesBeaten: 0, maxDifficulty: 0 }
+    expect(deckUnlocked('plain', fresh)).toBe(true)
+    expect(deckUnlocked('duotone', fresh)).toBe(false)
+    expect(deckGoal('pageless', fresh)).toBe('Reach ante 5')
+    expect(difficultyUnlocked(1, fresh)).toBe(false)
+    const veteran = { wins: 1, bestAnte: 8, bossesBeaten: 10, maxDifficulty: 2 }
+    for (const d of ['duotone', 'pageless', 'inky', 'mint']) expect(deckUnlocked(d, veteran)).toBe(true)
+    expect(difficultyUnlocked(2, veteran)).toBe(true)
+  })
+})

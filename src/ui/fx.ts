@@ -5,6 +5,7 @@ import { HANDS } from '../game/hands'
 import type { ScoreEvent } from '../game/types'
 import { act, useStore } from '../store'
 import { sfx } from './audio'
+import { duckMusic } from './music'
 
 export interface ActiveFx extends ScoreEvent {
   key: number
@@ -65,9 +66,11 @@ export function useScorePlayback() {
       panel: { chips: score.events[0]?.chips ?? 0, mult: score.events[0]?.mult ?? 0, name, level: score.level },
     })
 
+    duckMusic(true)
     const finish = () => {
       if (done) return
       done = true
+      duckMusic(false)
       act(E.finishScoring)
       useFx.getState().reset()
     }
@@ -111,6 +114,7 @@ export function useScorePlayback() {
     timer = window.setTimeout(step, 260 / speed())
     return () => {
       window.clearTimeout(timer)
+      duckMusic(false)
     }
   }, [phase, score])
 }

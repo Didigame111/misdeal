@@ -7,16 +7,23 @@ export interface PressHandlers {
   onDragStart?: () => void
   onDragMove?: (dx: number, dy: number) => void
   onDragEnd?: (dx: number, dy: number) => void
+  /** Finger down / up, for press feedback such as tilting toward the touch. */
+  onPressStart?: (e: React.PointerEvent) => void
+  onPressEnd?: () => void
 }
 
 const SLOP = 9
 const LONG_MS = 430
+/** A quick press may wander this far and still count as a tap. Stylus tips skid on glass far more than fingers do. */
+const FLICK = 32
+/** How long a press must last before moving under FLICK turns it into a drag. */
+const QUICK_MS = 160
 
 /** Tap, long-press and drag on one element, with pointer capture so drags survive leaving it. */
 export function usePress(handlers: PressHandlers) {
   const h = useRef(handlers)
   h.current = handlers
-  const st = useRef<{ id: number; x: number; y: number; dragging: boolean; long: boolean; timer: number } | null>(null)
+  const st = useRef<{ id: number; el: HTMLElement; x: number; y: number; t: number; dragging: boolean; long: boolean; timer: number } | null>(null)
   // Pointer events can arrive several times per frame; only the latest drag position matters.
   const frame = useRef({ raf: 0, dx: 0, dy: 0 })
   const flushDrag = () => {
@@ -29,6 +36,9 @@ export function usePress(handlers: PressHandlers) {
     if (!s || s.id !== e.pointerId) return
     window.clearTimeout(s.timer)
     st.current = null
+    // Let go straight away: a stylus reuses one pointer id, so a lingering capture could steal its next tap.
+    if (s.el.hasPointerCapture?.(e.pointerId)) s.el.releasePointerCapture(e.pointerId)
+    h.current.onPressEnd?.()
     if (frame.current.raf) {
       cancelAnimationFrame(frame.current.raf)
       frame.current.raf = 0
@@ -36,12 +46,15 @@ export function usePress(handlers: PressHandlers) {
     const dx = e.clientX - s.x
     const dy = e.clientY - s.y
     if (s.dragging) h.current.onDragEnd?.(dx, dy)
-    else if (!s.long && !cancelled) h.current.onTap?.()
+    else if (!s.long && !cancelled && Math.hypot(dx, dy) <= FLICK) h.current.onTap?.()
   }
 
   return {
     onPointerDown: (e: React.PointerEvent) => {
-      if (e.button !== 0 || st.current) return
+      if (e.button !== 0) return
+      // Ignore a second finger, but never let a press whose pointerup went missing block the next one.
+      if (st.current && st.current.id !== e.pointerId) return
+      if (st.current) window.clearTimeout(st.current.timer)
       const target = e.currentTarget as HTMLElement
       try {
         target.setPointerCapture(e.pointerId)
@@ -55,14 +68,18 @@ export function usePress(handlers: PressHandlers) {
           h.current.onLongPress()
         }
       }, LONG_MS)
-      st.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dragging: false, long: false, timer }
+      st.current = { id: e.pointerId, el: target, x: e.clientX, y: e.clientY, t: performance.now(), dragging: false, long: false, timer }
+      h.current.onPressStart?.(e)
     },
     onPointerMove: (e: React.PointerEvent) => {
       const s = st.current
       if (!s || s.id !== e.pointerId) return
       const dx = e.clientX - s.x
       const dy = e.clientY - s.y
-      if (!s.dragging && !s.long && Math.hypot(dx, dy) > SLOP) {
+      const dist = Math.hypot(dx, dy)
+      // A fast tap that skids a little is still a tap; only a held or long move becomes a drag.
+      const quick = performance.now() - s.t < QUICK_MS && dist <= FLICK
+      if (!s.dragging && !s.long && dist > SLOP && !quick) {
         window.clearTimeout(s.timer)
         if (h.current.onDragStart) {
           s.dragging = true

@@ -61,12 +61,12 @@ export const DECKS: DeckDef[] = [
   {
     key: 'inky',
     name: 'Inky Deck',
-    text: '+1 Joker slot, but −1 hand every round',
+    text: '+1 Joker slot, but −1 discard every round',
     inks: ['#2a2f6b', '#765ba7'],
     cards: 'standard',
     setup: (g) => {
       g.jokerSlots += 1
-      g.baseHands -= 1
+      g.baseDiscards -= 1
     },
   },
   {

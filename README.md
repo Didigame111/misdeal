@@ -9,10 +9,13 @@ It is a static site with no server, so it runs on Firebase Hosting's free Spark 
 ## What's in it
 
 - 52-card deck with all poker hands, including three hidden ones that need modified cards
-- 64 Jokers (common, uncommon, rare), each drawn procedurally as a two-ink printed character
+- 67 Jokers (common, uncommon, rare), each drawn procedurally as a two-ink printed character
 - 12 Plates that level up poker hands, 22 Stamps that change cards, 12 vouchers, 12 skip tags
 - 18 Boss Blinds, with two harder final bosses at ante 8, plus endless mode after you win
-- Card enhancements, editions and seals; 8 starting decks; seeded runs
+- Card enhancements, editions and seals; 8 decks; seeded runs
+- Four difficulty levels (Normal, Hard, Expert, Master); winning on one unlocks the next
+- Four decks to unlock with simple goals, and a Joker collection to fill
+- Original generative music and synthesized sound effects, all made live in the browser
 - Touch controls built for iPad: Discard under your left thumb, Play under your right, drag to reorder cards and Jokers, press and hold anything to read it
 - Works in landscape and portrait, and full screen when added to the Home Screen
 
@@ -23,7 +26,18 @@ npm install
 npm run dev        # http://localhost:5173
 npm test           # engine tests
 npm run build      # production build in dist/
+npm run sim -- base 2000    # balance simulator (see below)
 ```
+
+## Balance simulator
+
+`sim/` holds an honest bot that plays full runs with the real engine and a runner that spreads runs across CPU cores. Experiments:
+
+- `npm run sim -- base 2000`: win rate, where runs end, and how deadly each boss is
+- `npm run sim -- jokers 200`: each Joker's worth, measured with paired runs (same seeds with and without it)
+- `npm run sim -- decks 500` and `npm run sim -- diff 800`: compare decks and difficulty levels
+
+Results land in `sim/out/`. The bot is weaker than a good player, so read the numbers as comparisons, not absolute win rates.
 
 Open `http://localhost:5173/#gallery` while developing to see every piece of art on one page.
 

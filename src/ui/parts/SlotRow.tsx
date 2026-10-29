@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { rectOf, usePress, useSize } from '../hooks'
+import { tiltToward, untilt } from '../tilt'
 
 interface Props<T> {
   items: T[]
@@ -95,7 +96,10 @@ interface ItemProps {
 
 function SlotItem({ isNew, x, z, dragging, children, onTap, onDragStart, onDragMove, onDragEnd }: ItemProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null)
+  const tilt = useRef<HTMLDivElement>(null)
   const press = usePress({
+    onPressStart: (e) => tiltToward(tilt.current, e),
+    onPressEnd: () => untilt(tilt.current),
     onTap: () => el && onTap(el),
     onDragStart,
     onDragMove: (dx) => onDragMove(dx),
@@ -110,7 +114,9 @@ function SlotItem({ isNew, x, z, dragging, children, onTap, onDragStart, onDragM
       tabIndex={0}
       {...press}
     >
-      {children}
+      <div className="tilt" ref={tilt}>
+        {children}
+      </div>
     </div>
   )
 }

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "deploy": "npm run build && npx -y firebase-tools@latest deploy --only hosting",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "sim": "rolldown sim/run.ts -o sim/out/run.mjs -p node -f esm --checks.circularDependency=false >/dev/null && node sim/out/run.mjs"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible-next": "^5.3.0",

@@ -5,7 +5,9 @@ import { PLATES, STAMPS } from '../../game/consumables'
 import * as E from '../../game/engine'
 import { HAND_ORDER, HANDS, handValues } from '../../game/hands'
 import { JOKERS, RARITY_NAME } from '../../game/jokers'
+import { DIFFICULTIES } from '../../game/difficulty'
 import { DECKS, VOUCHER_MAP, VOUCHERS } from '../../game/meta'
+import { deckGoal, difficultyGoal, difficultyUnlocked } from '../../game/unlocks'
 import { deckSize } from '../../game/ops'
 import type { Card, GameState, Suit } from '../../game/types'
 import { useStore } from '../../store'
@@ -102,7 +104,8 @@ function RunInfo({ onClose }: { onClose: () => void }) {
           )}
           <h3>Run</h3>
           <p>
-            {DECKS.find((d) => d.key === g.deck)?.name}, seed <b className="seed">{g.seed}</b>. Best hand {fmt(g.stats.bestHand)}.
+            {DECKS.find((d) => d.key === g.deck)?.name} on {DIFFICULTIES[g.difficulty ?? 0].name}, seed <b className="seed">{g.seed}</b>. Best hand{' '}
+            {fmt(g.stats.bestHand)}.
           </p>
         </section>
       </div>
@@ -128,6 +131,17 @@ function Options({ onClose }: { onClose: () => void }) {
               {sp}×
             </button>
           ))}
+        </div>
+      </div>
+      <div className="opt-row">
+        <span>Music</span>
+        <div className="seg" role="group" aria-label="Music">
+          <button aria-pressed={settings.music} onClick={() => setSettings({ music: true })}>
+            On
+          </button>
+          <button aria-pressed={!settings.music} onClick={() => setSettings({ music: false })}>
+            Off
+          </button>
         </div>
       </div>
       <div className="opt-row">
@@ -234,6 +248,7 @@ export function HowTo({ onClose }: { onClose: () => void }) {
 }
 
 function Collection({ onClose }: { onClose: () => void }) {
+  const seen = useStore((st) => st.profile.seen)
   const [tab, setTab] = useState<'jokers' | 'items' | 'bosses'>('jokers')
   return (
     <Sheet title="Collection" onClose={onClose} wide>
@@ -249,8 +264,24 @@ function Collection({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       {tab === 'jokers' && (
+        <p className="coll-count">
+          You've found <b>{seen.length}</b> of {JOKERS.length} Jokers. Buy or pick one to add it here.
+        </p>
+      )}
+      {tab === 'jokers' && (
         <div className="coll-grid">
-          {JOKERS.map((j) => (
+          {JOKERS.map((j) =>
+            !seen.includes(j.key) ? (
+              <div className="coll-item is-unknown" key={j.key}>
+                <div className="coll-art">
+                  <CardBack />
+                </div>
+                <div>
+                  <strong>Not found yet</strong>
+                  <span className="dim small">{RARITY_NAME[j.rarity]}</span>
+                </div>
+              </div>
+            ) : (
             <div className="coll-item" key={j.key}>
               <div className="coll-art">
                 <JokerArt jkey={j.key} rarity={j.rarity} />
@@ -265,7 +296,8 @@ function Collection({ onClose }: { onClose: () => void }) {
                 </p>
               </div>
             </div>
-          ))}
+            ),
+          )}
         </div>
       )}
       {tab === 'items' && (
@@ -333,22 +365,61 @@ function Collection({ onClose }: { onClose: () => void }) {
 export function NewRun({ onClose }: { onClose: () => void }) {
   const startRun = useStore((s) => s.startRun)
   const hasRun = useStore((s) => !!s.game && s.game.phase !== 'over')
+  const profile = useStore((s) => s.profile)
+  const lastDifficulty = useStore((s) => s.settings.difficulty)
   const [deck, setDeck] = useState('plain')
+  const [level, setLevel] = useState(() => (difficultyUnlocked(lastDifficulty, profile) ? lastDifficulty : 0))
   const [seed, setSeed] = useState('')
   return (
     <Sheet title="New run" onClose={onClose} wide>
+      <div className="diff-pick" role="radiogroup" aria-label="Difficulty">
+        {DIFFICULTIES.map((d, i) => {
+          const goal = difficultyGoal(i, profile)
+          return (
+            <button
+              key={d.name}
+              role="radio"
+              aria-checked={level === i}
+              disabled={!!goal}
+              className={`diff-option${level === i ? ' is-on' : ''}${goal ? ' is-locked' : ''}`}
+              onClick={() => setLevel(i)}
+            >
+              <strong>
+                {goal && <LockIcon />}
+                {d.name}
+              </strong>
+              <span className="small">{goal ?? (i === 0 ? d.adds : `Adds: ${d.adds.charAt(0).toLowerCase()}${d.adds.slice(1)}`)}</span>
+            </button>
+          )
+        })}
+      </div>
       <div className="deck-pick" role="radiogroup" aria-label="Deck">
-        {DECKS.map((d) => (
-          <button key={d.key} role="radio" aria-checked={deck === d.key} className={`deck-option${deck === d.key ? ' is-on' : ''}`} onClick={() => setDeck(d.key)}>
-            <span className="deck-option-art">
-              <CardBack deck={d.key} />
-            </span>
-            <strong>{d.name}</strong>
-            <span className="small">
-              <RichText text={d.text} />
-            </span>
-          </button>
-        ))}
+        {DECKS.map((d) => {
+          const goal = deckGoal(d.key, profile)
+          const best = profile.deckBest[d.key]
+          return (
+            <button
+              key={d.key}
+              role="radio"
+              aria-checked={deck === d.key}
+              disabled={!!goal}
+              className={`deck-option${deck === d.key ? ' is-on' : ''}${goal ? ' is-locked' : ''}`}
+              onClick={() => setDeck(d.key)}
+            >
+              <span className="deck-option-art">
+                <CardBack deck={d.key} />
+                {goal && (
+                  <span className="deck-lock">
+                    <LockIcon />
+                  </span>
+                )}
+              </span>
+              <strong>{d.name}</strong>
+              <span className="small">{goal ? `Locked. ${goal} to unlock` : <RichText text={d.text} />}</span>
+              {best !== undefined && best >= 0 && <span className="deck-won">Won on {DIFFICULTIES[best].name}</span>}
+            </button>
+          )
+        })}
       </div>
       <div className="newrun-foot">
         <label className="seed-field">
@@ -368,13 +439,22 @@ export function NewRun({ onClose }: { onClose: () => void }) {
           className="btn btn-play"
           onClick={() => {
             sfx('play')
-            startRun(deck, seed || undefined)
+            startRun(deck, seed || undefined, level)
           }}
         >
           <span className="btn-label">Start run</span>
         </button>
       </div>
     </Sheet>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg className="lock-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="3" y="7" width="10" height="8" rx="1.6" fill="currentColor" />
+      <path d="M5.2 7V5a2.8 2.8 0 0 1 5.6 0v2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
   )
 }
 
@@ -405,6 +485,7 @@ export function EndScreen() {
   const setModal = useStore((s) => s.setModal)
   const toMenu = useStore((s) => s.toMenu)
   const act = useStore((s) => s.act)
+  const unlocks = useStore((s) => s.runUnlocks)
   const won = g.phase === 'won'
   const r = g.round
   const most = g.stats.mostPlayed
@@ -419,6 +500,16 @@ export function EndScreen() {
               ? `${r.handsLeft > 0 ? 'Out of cards' : 'Out of hands'} on ${E.blindName(g.blinds[g.blindIdx])}: ${fmt(r.score)} of ${fmt(r.target)}.`
               : 'Out of cards to play.'}
         </p>
+        {unlocks.length > 0 && (
+          <div className="end-unlocks">
+            <strong>Unlocked</strong>
+            <ul>
+              {unlocks.map((u) => (
+                <li key={u}>{u}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <dl className="end-stats">
           <div>
             <dt>Best hand</dt>
@@ -439,6 +530,10 @@ export function EndScreen() {
           <div>
             <dt>Rerolls</dt>
             <dd>{g.stats.rerolls}</dd>
+          </div>
+          <div>
+            <dt>Difficulty</dt>
+            <dd>{DIFFICULTIES[g.difficulty ?? 0].name}</dd>
           </div>
           <div>
             <dt>Seed</dt>

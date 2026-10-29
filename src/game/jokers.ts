@@ -123,12 +123,12 @@ export const JOKERS: JokerDef[] = [
   suitJoker('clover', 'Four-Leaf', 'C', '♣'),
   handMult('doubletake', 'Double Take', 'pair', 8, 3),
   handMult('twostep', 'Two-Step', 'twopair', 10),
-  handMult('hattrick', 'Hat Trick', 'three', 12),
-  handMult('ladder', 'Step Ladder', 'straight', 12),
-  handMult('swatch', 'Swatch Book', 'flush', 10),
+  handMult('hattrick', 'Hat Trick', 'three', 14),
+  handMult('ladder', 'Step Ladder', 'straight', 16),
+  handMult('swatch', 'Swatch Book', 'flush', 14),
   handChips('paperstack', 'Paper Stack', 'pair', 50),
-  handChips('rails', 'Guard Rails', 'straight', 100),
-  handChips('palette', 'Palette', 'flush', 80),
+  handChips('rails', 'Guard Rails', 'straight', 130),
+  handChips('palette', 'Palette', 'flush', 110),
   {
     key: 'halfsheet',
     name: 'Half Sheet',
@@ -271,8 +271,8 @@ export const JOKERS: JokerDef[] = [
     name: 'Crowd',
     rarity: 1,
     cost: 4,
-    text: (_j, g) => `+3 Mult for each Joker you have (currently +${3 * g.jokers.length} Mult)`,
-    main: (ctx) => ({ mult: 3 * ctx.g.jokers.length }),
+    text: (_j, g) => `+2 Mult for each Joker you have (currently +${2 * g.jokers.length} Mult)`,
+    main: (ctx) => ({ mult: 2 * ctx.g.jokers.length }),
   },
   {
     key: 'deepstack',
@@ -288,16 +288,16 @@ export const JOKERS: JokerDef[] = [
   {
     key: 'momentum',
     name: 'Momentum',
-    rarity: 1,
-    cost: 5,
+    rarity: 2,
+    cost: 6,
     init: { mult: 0 },
-    text: (j) => `Gains +1 Mult per hand played and loses 1 Mult per discard (currently +${j.s.mult} Mult)`,
+    text: (j) => `Gains +1 Mult per hand played and loses 2 Mult per discard (currently +${j.s.mult} Mult)`,
     badge: (j) => `+${j.s.mult}`,
     onPlay: (_g, j) => {
       j.s.mult += 1
     },
     onDiscard: (_g, j) => {
-      j.s.mult = Math.max(0, j.s.mult - 1)
+      j.s.mult = Math.max(0, j.s.mult - 2)
     },
     main: (_ctx, j) => (j.s.mult > 0 ? { mult: j.s.mult } : undefined),
   },
@@ -324,8 +324,8 @@ export const JOKERS: JokerDef[] = [
   {
     key: 'lowball',
     name: 'Low Ball',
-    rarity: 1,
-    cost: 5,
+    rarity: 2,
+    cost: 6,
     text: () => 'Adds double the value of the lowest card held in hand to Mult',
     onHeld: (ctx, _j, c) => {
       const ranked = ctx.held.filter((h) => !isBlank(h))
@@ -549,11 +549,8 @@ export const JOKERS: JokerDef[] = [
     name: 'Heavy Stock',
     rarity: 2,
     cost: 7,
-    text: (_j, g) => `×0.25 Mult for each Card Stock card in your deck (currently ${fmtX(1 + 0.25 * countEnh(g, 'stock'))})`,
-    main: (ctx) => {
-      const n = countEnh(ctx.g, 'stock')
-      return n > 0 ? { xmult: 1 + 0.25 * n } : undefined
-    },
+    text: (_j, g) => `×1.25 Mult, plus ×0.25 for each Card Stock card in your deck (currently ${fmtX(1.25 + 0.25 * countEnh(g, 'stock'))})`,
+    main: (ctx) => ({ xmult: 1.25 + 0.25 * countEnh(ctx.g, 'stock') }),
   },
   {
     key: 'thinstack',
@@ -614,7 +611,7 @@ export const JOKERS: JokerDef[] = [
   },
   handX('twinpeaks', 'Twin Peaks', 'pair', 2),
   handX('trio', 'Trio', 'three', 3),
-  handX('coloring', 'Coloring Book', 'flush', 2),
+  handX('coloring', 'Coloring Book', 'flush', 2.5),
   {
     key: 'tradingcard',
     name: 'Trading Card',
@@ -628,7 +625,7 @@ export const JOKERS: JokerDef[] = [
     name: 'Jackpot',
     rarity: 3,
     cost: 8,
-    init: { x: 1 },
+    init: { x: 1.5 },
     text: (j) => `Gains ×0.25 Mult each time a Scratch-off card pays out (currently ${fmtX(j.s.x)} Mult)`,
     badge: (j) => fmtX(j.s.x),
     onScratch: (_g, j) => {
@@ -641,7 +638,7 @@ export const JOKERS: JokerDef[] = [
     name: 'Glass Act',
     rarity: 3,
     cost: 8,
-    init: { x: 1 },
+    init: { x: 1.5 },
     text: (j) => `Gains ×0.75 Mult each time a Tissue card tears (currently ${fmtX(j.s.x)} Mult)`,
     badge: (j) => fmtX(j.s.x),
     onTear: (_g, j) => {

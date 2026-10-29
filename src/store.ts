@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import * as E from './game/engine'
+import { unlockedNames } from './game/unlocks'
 import type { GameState } from './game/types'
 
 export type Modal = null | 'runinfo' | 'options' | 'deck' | 'howto' | 'collection' | 'newrun'
@@ -27,6 +28,9 @@ export type Inspect = InspectTarget & { rect: Rect }
 export interface Settings {
   speed: 1 | 2 | 4
   sound: boolean
+  music: boolean
+  /** Difficulty last picked in the New run sheet. */
+  difficulty: number
 }
 
 export interface Profile {
@@ -34,6 +38,13 @@ export interface Profile {
   wins: number
   bestAnte: number
   bestHand: number
+  /** Highest difficulty level unlocked (0 = Normal only). */
+  maxDifficulty: number
+  /** Highest difficulty won with each deck. */
+  deckBest: Record<string, number>
+  bossesBeaten: number
+  /** Jokers the player has owned at least once, for the Collection. */
+  seen: string[]
 }
 
 interface Store {
@@ -41,10 +52,12 @@ interface Store {
   game: GameState | null
   settings: Settings
   profile: Profile
+  /** Things unlocked during the current run, shown on the end screen. */
+  runUnlocks: string[]
   modal: Modal
   inspect: Inspect | null
   act: (fn: (g: GameState) => void) => void
-  startRun: (deck: string, seed?: string) => void
+  startRun: (deck: string, seed?: string, difficulty?: number) => void
   continueRun: () => void
   toMenu: () => void
   abandonRun: () => void
@@ -76,14 +89,23 @@ function loadGame(): GameState | null {
   return g
 }
 
-const defaultProfile: Profile = { runs: 0, wins: 0, bestAnte: 0, bestHand: 0 }
+const defaultProfile: Profile = { runs: 0, wins: 0, bestAnte: 0, bestHand: 0, maxDifficulty: 0, deckBest: {}, bossesBeaten: 0, seen: [] }
+
+function loadProfile(): Profile {
+  const saved = read<Partial<Profile>>(PROFILE_KEY) ?? {}
+  const p = { ...defaultProfile, ...saved }
+  // Profiles from before difficulty levels: every earlier win was on Normal, which opens Hard.
+  if (saved.maxDifficulty === undefined) p.maxDifficulty = p.wins > 0 ? 1 : 0
+  return p
+}
 
 export const useStore = create<Store>()(
   immer((set) => ({
     screen: 'menu',
     game: loadGame(),
-    settings: { speed: 1, sound: true, ...read<Settings>(SETTINGS_KEY) },
-    profile: { ...defaultProfile, ...read<Profile>(PROFILE_KEY) },
+    settings: { speed: 1, sound: true, music: true, difficulty: 0, ...read<Settings>(SETTINGS_KEY) },
+    profile: loadProfile(),
+    runUnlocks: [],
     modal: null,
     inspect: null,
 
@@ -91,19 +113,35 @@ export const useStore = create<Store>()(
       set((s) => {
         if (!s.game) return
         const before = s.game.phase
+        const unlockedBefore = unlockedNames(s.profile)
         fn(s.game)
         const g = s.game
+        const p = s.profile
+        for (const j of g.jokers) if (!p.seen.includes(j.key)) p.seen.push(j.key)
+        if (g.ante > p.bestAnte) p.bestAnte = g.ante
+        if (before === 'scoring' && (g.phase === 'cashout' || g.phase === 'won') && g.blinds[g.blindIdx]?.kind === 'boss') p.bossesBeaten += 1
         if (g.phase !== before && (g.phase === 'over' || g.phase === 'won')) {
-          s.profile.bestAnte = Math.max(s.profile.bestAnte, g.ante)
-          s.profile.bestHand = Math.max(s.profile.bestHand, g.stats.bestHand)
-          if (g.phase === 'won') s.profile.wins += 1
+          p.bestHand = Math.max(p.bestHand, g.stats.bestHand)
+          if (g.phase === 'won') {
+            const level = g.difficulty ?? 0
+            p.wins += 1
+            p.deckBest[g.deck] = Math.max(p.deckBest[g.deck] ?? -1, level)
+            p.maxDifficulty = Math.max(p.maxDifficulty, Math.min(3, level + 1))
+          }
+        }
+        const fresh = unlockedNames(p).filter((n) => !unlockedBefore.includes(n))
+        for (const name of fresh) {
+          s.runUnlocks.push(name)
+          g.notices.push(`Unlocked: ${name}`)
         }
         if (g.phase !== before) s.inspect = null
       }),
 
-    startRun: (deck, seed) =>
+    startRun: (deck, seed, difficulty = 0) =>
       set((s) => {
-        s.game = E.newGame(deck, seed || undefined)
+        s.game = E.newGame(deck, seed || undefined, difficulty)
+        s.settings.difficulty = difficulty
+        s.runUnlocks = []
         s.profile.runs += 1
         s.screen = 'game'
         s.modal = null

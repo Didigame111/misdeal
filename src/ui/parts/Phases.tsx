@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { BOSS_MAP, TAG_MAP } from '../../game/blinds'
 import * as E from '../../game/engine'
 import { PACKS, VOUCHER_MAP, VOUCHER_PRICE } from '../../game/meta'
@@ -98,6 +98,12 @@ export function CashOut() {
   const lines = g.cashout ?? []
   const total = lines.reduce((s, l) => s + l.amount, 0)
   const b = g.blinds[g.blindIdx]
+  useEffect(() => {
+    const timers = lines.map((_, i) => window.setTimeout(() => sfx('money'), 160 + i * 90))
+    return () => timers.forEach((t) => window.clearTimeout(t))
+    // Ring once per receipt, when it first prints.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   return (
     <div className="cashout">
       <div className="receipt">

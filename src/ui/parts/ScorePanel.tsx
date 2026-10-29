@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { selectedInOrder } from '../../game/engine'
 import { HANDS } from '../../game/hands'
 import { previewHand } from '../../game/scoring'
@@ -7,6 +7,36 @@ import { fmt, fmtMult } from '../format'
 import { useFx } from '../fx'
 
 /** Hand name and the chips × mult blocks. At the end of a hand the two blocks overprint into the total. */
+const INKS = ['#ff48b0', '#3255a4', '#ffe800', '#00a95c', '#ff6c2f', '#5ec8e5', '#765ba7']
+
+/** Paper confetti in the game's ink colours, flung out from the score panel. */
+function Burst({ pieces }: { pieces: number }) {
+  const bits = useMemo(
+    () =>
+      Array.from({ length: pieces }, (_, i) => {
+        const a = (i / pieces) * Math.PI * 2 + Math.random() * 0.5
+        const dist = 90 + Math.random() * 170
+        return {
+          '--dx': `${Math.cos(a) * dist}px`,
+          '--dy': `${Math.sin(a) * dist * 0.65 - 40}px`,
+          '--rot': `${Math.random() * 720 - 360}deg`,
+          '--w': `${6 + Math.random() * 8}px`,
+          '--h': `${4 + Math.random() * 6}px`,
+          '--c': INKS[i % INKS.length],
+          '--d': `${(Math.random() * 0.08 + 0.22).toFixed(2)}s`,
+        } as React.CSSProperties
+      }),
+    [pieces],
+  )
+  return (
+    <div className="burst" aria-hidden="true">
+      {bits.map((style, i) => (
+        <i key={i} style={style} />
+      ))}
+    </div>
+  )
+}
+
 export const ScorePanel = memo(function ScorePanel() {
   const g = useStore((s) => s.game!)
   const panel = useFx((s) => s.panel)
@@ -39,6 +69,7 @@ export const ScorePanel = memo(function ScorePanel() {
           Blind beaten
         </span>
       )}
+      {beaten && <Burst pieces={r && total! >= (r.target - r.score) * 3 ? 56 : 34} />}
       <div className="hand-name" aria-live="polite">
         {bad ? (
           <span className="hand-bad">{bad}</span>
