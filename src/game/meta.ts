@@ -13,6 +13,7 @@ export interface DeckDef {
 }
 
 export const DECKS: DeckDef[] = [
+  // In unlock order, see DECK_LADDER in unlocks.ts.
   { key: 'plain', name: 'Plain Deck', text: 'A regular 52-card deck. No bonus.', inks: ['#3255a4', '#ff48b0'], cards: 'standard' },
   {
     key: 'crimson',
@@ -25,14 +26,22 @@ export const DECKS: DeckDef[] = [
     },
   },
   {
-    key: 'cobalt',
-    name: 'Cobalt Deck',
-    text: '+1 hand every round',
-    inks: ['#3255a4', '#5ec8e5'],
+    key: 'inky',
+    name: 'Inky Deck',
+    text: '+1 Joker slot, but −1 discard every round',
+    inks: ['#2a2f6b', '#765ba7'],
     cards: 'standard',
     setup: (g) => {
-      g.baseHands += 1
+      g.jokerSlots += 1
+      g.baseDiscards -= 1
     },
+  },
+  {
+    key: 'pageless',
+    name: 'Pageless Deck',
+    text: 'No face cards. 40 cards in the deck',
+    inks: ['#00835c', '#ffe800'],
+    cards: 'pageless',
   },
   {
     key: 'saffron',
@@ -52,29 +61,21 @@ export const DECKS: DeckDef[] = [
     cards: 'duotone',
   },
   {
-    key: 'pageless',
-    name: 'Pageless Deck',
-    text: 'No face cards. 40 cards in the deck',
-    inks: ['#00835c', '#ffe800'],
-    cards: 'pageless',
-  },
-  {
-    key: 'inky',
-    name: 'Inky Deck',
-    text: '+1 Joker slot, but −1 discard every round',
-    inks: ['#2a2f6b', '#765ba7'],
-    cards: 'standard',
-    setup: (g) => {
-      g.jokerSlots += 1
-      g.baseDiscards -= 1
-    },
-  },
-  {
     key: 'mint',
     name: 'Mint Deck',
     text: 'No interest. Earn $2 per hand left and $1 per discard left instead',
     inks: ['#00a95c', '#5ec8e5'],
     cards: 'standard',
+  },
+  {
+    key: 'cobalt',
+    name: 'Cobalt Deck',
+    text: '+1 hand every round',
+    inks: ['#3255a4', '#5ec8e5'],
+    cards: 'standard',
+    setup: (g) => {
+      g.baseHands += 1
+    },
   },
 ]
 

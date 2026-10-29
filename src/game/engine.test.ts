@@ -365,11 +365,18 @@ describe('difficulty and unlocks', () => {
     const { deckUnlocked, difficultyUnlocked, deckGoal } = await import('./unlocks')
     const fresh = { wins: 0, bestAnte: 1, bossesBeaten: 0, maxDifficulty: 0 }
     expect(deckUnlocked('plain', fresh)).toBe(true)
-    expect(deckUnlocked('duotone', fresh)).toBe(false)
-    expect(deckGoal('pageless', fresh)).toBe('Reach ante 5')
+    for (const d of ['crimson', 'cobalt', 'saffron', 'duotone']) expect(deckUnlocked(d, fresh)).toBe(false)
+    expect(deckGoal('crimson', fresh)).toBe('Reach ante 3')
+    expect(deckGoal('cobalt', fresh)).toBe('Win a run')
     expect(difficultyUnlocked(1, fresh)).toBe(false)
+    // Each ante reached opens exactly one more deck, in order.
+    const { DECK_LADDER } = await import('./unlocks')
+    const { DECKS } = await import('./meta')
+    expect(DECKS.map((d) => d.key)).toEqual(['plain', ...DECK_LADDER.map((s) => s.deck)])
+    expect(deckUnlocked('crimson', { ...fresh, bestAnte: 3 })).toBe(true)
+    expect(deckUnlocked('inky', { ...fresh, bestAnte: 3 })).toBe(false)
     const veteran = { wins: 1, bestAnte: 8, bossesBeaten: 10, maxDifficulty: 2 }
-    for (const d of ['duotone', 'pageless', 'inky', 'mint']) expect(deckUnlocked(d, veteran)).toBe(true)
+    for (const d of DECKS) expect(deckUnlocked(d.key, veteran)).toBe(true)
     expect(difficultyUnlocked(2, veteran)).toBe(true)
   })
 })

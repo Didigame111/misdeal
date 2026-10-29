@@ -13,15 +13,29 @@ export interface ProgressLike {
   maxDifficulty: number
 }
 
-/** Decks open from the start. */
-export const STARTER_DECKS = ['plain', 'crimson', 'cobalt', 'saffron']
+/** The only deck open from the start: no bonus at all. */
+export const STARTER_DECKS = ['plain']
 
-const DECK_GOALS: Record<string, { text: string; met: (p: ProgressLike) => boolean }> = {
-  duotone: { text: 'Win a run', met: (p) => p.wins >= 1 },
-  pageless: { text: 'Reach ante 5', met: (p) => p.bestAnte >= 5 },
-  inky: { text: 'Beat 10 Boss Blinds', met: (p) => p.bossesBeaten >= 10 },
-  mint: { text: 'Win a run on Hard', met: (p) => p.maxDifficulty >= 2 },
-}
+/**
+ * Decks open one at a time as your best ante climbs, weakest bonus first, so every new
+ * milestone hands you a better tool for the next run. Ordered by the balance simulator's deck results.
+ */
+export const DECK_LADDER: { deck: string; ante?: number; win?: true }[] = [
+  { deck: 'crimson', ante: 3 },
+  { deck: 'inky', ante: 4 },
+  { deck: 'pageless', ante: 5 },
+  { deck: 'saffron', ante: 6 },
+  { deck: 'duotone', ante: 7 },
+  { deck: 'mint', ante: 8 },
+  { deck: 'cobalt', win: true },
+]
+
+const DECK_GOALS: Record<string, { text: string; met: (p: ProgressLike) => boolean }> = Object.fromEntries(
+  DECK_LADDER.map(({ deck, ante, win }) => [
+    deck,
+    win ? { text: 'Win a run', met: (p: ProgressLike) => p.wins >= 1 } : { text: `Reach ante ${ante}`, met: (p: ProgressLike) => p.bestAnte >= ante! },
+  ]),
+)
 
 export function deckUnlocked(deck: string, p: ProgressLike): boolean {
   return STARTER_DECKS.includes(deck) || !!DECK_GOALS[deck]?.met(p)

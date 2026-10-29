@@ -132,7 +132,7 @@ export const useStore = create<Store>()(
         const fresh = unlockedNames(p).filter((n) => !unlockedBefore.includes(n))
         for (const name of fresh) {
           s.runUnlocks.push(name)
-          g.notices.push(`Unlocked: ${name}`)
+          g.notices.push(`Unlocked for your next run: ${name}`)
         }
         if (g.phase !== before) s.inspect = null
       }),

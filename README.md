@@ -14,7 +14,7 @@ It is a static site with no server, so it runs on Firebase Hosting's free Spark 
 - 18 Boss Blinds, with two harder final bosses at ante 8, plus endless mode after you win
 - Card enhancements, editions and seals; 8 decks; seeded runs
 - Four difficulty levels (Normal, Hard, Expert, Master); winning on one unlocks the next
-- Four decks to unlock with simple goals, and a Joker collection to fill
+- Start with the Plain Deck and unlock a new deck for every ante you reach (3 through 8, then a win), plus a Joker collection to fill
 - Original generative music and synthesized sound effects, all made live in the browser
 - Touch controls built for iPad: Discard under your left thumb, Play under your right, drag to reorder cards and Jokers, press and hold anything to read it
 - Works in landscape and portrait, and full screen when added to the Home Screen
