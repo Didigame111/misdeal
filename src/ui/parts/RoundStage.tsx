@@ -196,6 +196,9 @@ function GhostCard({ ghost, to, deck }: { ghost: Ghost; to: P; deck: string }) {
   )
 }
 
+/** A card you just marked ignores taps for this long, so a double tap or a bouncing stylus doesn't unmark it. */
+const UNMARK_GUARD_MS = 450
+
 export function RoundStage() {
   const g = useStore((s) => s.game!)
   const setModal = useStore((s) => s.setModal)
@@ -214,6 +217,8 @@ export function RoundStage() {
 
   const [drag, setDrag] = useState<{ id: string; from: number; dx: number; vx: number } | null>(null)
   const settle = useRef(0)
+  // When each card was last marked, so a stray second tap can't unmark it straight away.
+  const markedAt = useRef<Record<string, number>>({})
   const [deal, setDeal] = useState<{ ready: Set<string>; delays: Record<string, number> }>(() => ({ ready: new Set(), delays: {} }))
   const ready = deal.ready
   const [ghosts, setGhosts] = useState<Ghost[]>([])
@@ -412,6 +417,8 @@ export function RoundStage() {
               onTap={() => {
                 const was = r.selected.includes(id)
                 if (!was && r.selected.length >= 5) return
+                if (was && performance.now() - (markedAt.current[id] ?? 0) < UNMARK_GUARD_MS) return
+                if (!was) markedAt.current[id] = performance.now()
                 sfx(was ? 'deselect' : 'select')
                 act((d) => E.toggleSelect(d, id))
               }}
